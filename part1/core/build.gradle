@@ -8,6 +8,8 @@ dependencies {
   // 支持使用 TTF/OTF 字体生成 BitmapFont（中文等）
   api "com.badlogicgames.gdx:gdx-freetype:$gdxVersion"
 
+  // Tiled 地图（TiledMap、TmxMapLoader 等）已经包含在核心 gdx 中，无需额外依赖
+
   if(enableGraalNative == 'true') {
     implementation "io.github.berstanio:gdx-svmhelper-annotations:$graalHelperVersion"
   }

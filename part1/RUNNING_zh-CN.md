@@ -274,3 +274,167 @@ cd D:\workspace\lib-gdx-demo\part1
 ```
 
 可以在 Windows 10 + 中国网络环境下成功启动 LibGDX 桌面应用，并正常显示中文文字。
+
+---
+
+### 六、加载 Tiled 地图（.tmx）并用相机滚动浏览
+
+#### 1. 准备地图资源
+
+- 在 `assets/tmx/` 目录下放置 Tiled 导出的地图文件及其依赖：
+  - `assets/tmx/desert.tmx`
+  - `assets/tmx/desert.tsx`
+  - `assets/tmx/tmw_desert_spacing.png`（tileset 使用的图片）
+- 在 `desert.tmx` 中，tileset 引用为：
+
+```xml
+<tileset firstgid="1" source="desert.tsx"/>
+```
+
+这意味着 `desert.tsx` 和 `desert.tmx` 需要在**同一目录**（`assets/tmx/`）下，否则会出现：
+
+```text
+Error parsing file: tmx/desert.tsx
+Caused by: ... File not found: tmx\desert.tsx (Internal)
+```
+
+#### 2. 依赖配置
+
+- **TiledMap API 所需类（`TiledMap`、`TmxMapLoader`、`OrthogonalTiledMapRenderer`）已经包含在核心 `gdx` 中**，本项目只额外添加了 FreeType 依赖：
+
+```groovy
+// core/build.gradle
+dependencies {
+  api "com.badlogicgames.gdx:gdx:$gdxVersion"
+  api "org.jetbrains.kotlin:kotlin-stdlib:$kotlinVersion"
+
+  // 支持使用 TTF/OTF 字体生成 BitmapFont（中文等）
+  api "com.badlogicgames.gdx:gdx-freetype:$gdxVersion"
+}
+```
+
+#### 3. 在 `FirstScreen` 中加载并渲染 Tiled 地图
+
+在 `FirstScreen.java` 中新增字段：
+
+```java
+private TiledMap tiledMap;
+private OrthogonalTiledMapRenderer mapRenderer;
+```
+
+在 `show()` 方法中加载地图并创建渲染器：
+
+```java
+// 加载 Tiled 地图（assets/tmx/desert.tmx）
+// 注意：lwjgl3 的 run 任务 workingDir 已指向 assets 目录，使用内部路径 "tmx/desert.tmx"
+tiledMap = new TmxMapLoader().load("tmx/desert.tmx");
+mapRenderer = new OrthogonalTiledMapRenderer(tiledMap);
+```
+
+在 `render(float delta)` 中先画地图，再画文字：
+
+```java
+// 清屏为黑色，地图会覆盖背景
+Gdx.gl.glClearColor(0, 0, 0, 1);
+Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
+
+// 更新摄像机
+camera.update();
+
+// 先绘制 Tiled 地图
+if (mapRenderer != null) {
+    mapRenderer.setView(camera);
+    mapRenderer.render();
+}
+
+// 再绘制文本（叠加在地图之上）
+batch.setProjectionMatrix(camera.combined);
+batch.begin();
+// ... font.draw(...)
+batch.end();
+```
+
+在 `dispose()` 中释放地图资源：
+
+```java
+if (mapRenderer != null) {
+    mapRenderer.dispose();
+}
+if (tiledMap != null) {
+    tiledMap.dispose();
+}
+```
+
+#### 4. 使用键盘（W / A / S / D + 方向键）控制相机移动
+
+为实现“按键移动时，地图内容逐渐展示”，在 `FirstScreen` 中使用 `OrthographicCamera` 作为相机，配合键盘输入控制相机位置。
+
+在类中增加地图与相机相关常量：
+
+```java
+// 地图信息：40x40 个 32x32 的 tile（来自 desert.tmx 描述）
+private static final int MAP_WIDTH_TILES = 40;
+private static final int MAP_HEIGHT_TILES = 40;
+private static final int TILE_SIZE = 32;
+```
+
+在 `render(float delta)` 开头添加键盘输入和相机移动逻辑：
+
+```java
+// 键盘输入控制相机移动（WASD + 方向键）
+float moveSpeed = 200f * delta; // 每秒 200 像素
+if (Gdx.input.isKeyPressed(Input.Keys.W) || Gdx.input.isKeyPressed(Input.Keys.UP)) {
+    camera.position.y += moveSpeed;
+}
+if (Gdx.input.isKeyPressed(Input.Keys.S) || Gdx.input.isKeyPressed(Input.Keys.DOWN)) {
+    camera.position.y -= moveSpeed;
+}
+if (Gdx.input.isKeyPressed(Input.Keys.A) || Gdx.input.isKeyPressed(Input.Keys.LEFT)) {
+    camera.position.x -= moveSpeed;
+}
+if (Gdx.input.isKeyPressed(Input.Keys.D) || Gdx.input.isKeyPressed(Input.Keys.RIGHT)) {
+    camera.position.x += moveSpeed;
+}
+
+// 限制相机范围在地图内部（避免移出地图外面全是空）
+float mapWidth = MAP_WIDTH_TILES * TILE_SIZE;
+float mapHeight = MAP_HEIGHT_TILES * TILE_SIZE;
+float halfViewWidth = VIRTUAL_WIDTH / 2f;
+float halfViewHeight = VIRTUAL_HEIGHT / 2f;
+camera.position.x = MathUtils.clamp(camera.position.x, halfViewWidth, mapWidth - halfViewWidth);
+camera.position.y = MathUtils.clamp(camera.position.y, halfViewHeight, mapHeight - halfViewHeight);
+```
+
+这样在运行程序时，就可以通过：
+
+- `W` / ↑：向上滚动地图
+- `S` / ↓：向下滚动地图
+- `A` / ←：向左滚动地图
+- `D` / →：向右滚动地图
+
+让相机在地图内部平滑移动，逐步浏览整张地图。
+
+#### 5. 本节涉及的关键 LibGDX 知识点总结
+
+- **`TiledMap` / `TmxMapLoader` / `OrthogonalTiledMapRenderer`**：  
+  - 用于加载 `.tmx` 文件并以正交方式绘制 Tiled 地图。
+  - 需要保证 `.tmx`、`.tsx` 和 tileset 图片的**相对路径正确**。
+
+- **`OrthographicCamera` + `Viewport`（`FitViewport`）**：  
+  - `OrthographicCamera` 定义 2D 世界坐标系和可见区域。  
+  - `FitViewport(VIRTUAL_WIDTH, VIRTUAL_HEIGHT, camera)` 负责在不同窗口分辨率下保持宽高比，映射到虚拟坐标。
+
+- **相机控制与边界限制**：  
+  - 通过修改 `camera.position.x / y` 实现视野平移。  
+  - 使用 `MathUtils.clamp(...)` 将相机限制在地图尺寸范围内，防止看到地图外的空白区域。
+
+- **输入处理（`Gdx.input.isKeyPressed`）**：  
+  - 直接在 `render()` 中轮询键盘按键状态，实现持续移动效果。  
+  - 支持多组键位（WASD + 方向键），提升操作体验。
+
+- **渲染顺序**：  
+  - 先清屏，再用 `mapRenderer` 渲染 Tiled 地图，最后用 `SpriteBatch`+`BitmapFont` 绘制文字叠加在上层。  
+  - 通过 `batch.setProjectionMatrix(camera.combined)` 保证文字与地图在同一坐标系下。
+
+- **资源管理（`dispose()`）**：  
+  - 对应 `SpriteBatch`、`BitmapFont`、`OrthogonalTiledMapRenderer`、`TiledMap` 等 GPU/内存资源，要在 `dispose()` 中显式释放，避免内存泄漏。
