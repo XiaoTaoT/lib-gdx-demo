@@ -1,6 +1,7 @@
-package io.github.some_example_name;
+package com.github.xiaotaotao.ligdx.laboratory;
 
 import com.badlogic.gdx.Game;
+import com.github.xiaotaotao.ligdx.laboratory.attack.AttackDemoScreen;
 
 /** {@link com.badlogic.gdx.ApplicationListener} implementation shared by all platforms. */
 public class Main extends Game {
@@ -11,7 +12,13 @@ public class Main extends Game {
         // setScreen(new FirstScreen());
 
         // 取消注释下面这行来运行图层系统演示：
-//        setScreen(new LayerSystemDemoScreen());
-        setScreen(new P1Screen());
+        // setScreen(new LayerSystemDemoScreen());
+
+        // UI 演示 Screen
+        // setScreen(new UIDemoScreen());
+
+        // 像素角色/战斗系统演示 Screen
+//        setScreen(new CharacterDemoScreen());
+        setScreen(new AttackDemoScreen());
     }
 }
