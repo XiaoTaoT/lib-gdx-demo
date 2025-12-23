@@ -109,12 +109,50 @@ public class AttackDemoScreen implements Screen {
         // 创建玩家（屏幕左侧中间）
         player = new KnifemanCharacter(200, VIRTUAL_HEIGHT / 2f);
         
-        // 创建几个敌人（分散在屏幕右侧）
+        // 创建几个敌人（分散在屏幕右侧，确保不重叠）
         enemies.clear();
-        enemies.add(new SimpleEnemy(1400, VIRTUAL_HEIGHT / 2f));
-        enemies.add(new SimpleEnemy(1500, VIRTUAL_HEIGHT / 2f + 100));
-        enemies.add(new SimpleEnemy(1500, VIRTUAL_HEIGHT / 2f - 100));
-        enemies.add(new SimpleEnemy(1600, VIRTUAL_HEIGHT / 2f));
+        
+        // 敌人初始位置（确保不重叠）
+        float[] enemyPositions = {
+            1400, VIRTUAL_HEIGHT / 2f,
+            1500, VIRTUAL_HEIGHT / 2f + 100,
+            1500, VIRTUAL_HEIGHT / 2f - 100,
+            1600, VIRTUAL_HEIGHT / 2f
+        };
+        
+        for (int i = 0; i < enemyPositions.length; i += 2) {
+            SimpleEnemy enemy = new SimpleEnemy(enemyPositions[i], enemyPositions[i + 1]);
+            
+            // 检查是否与已存在的敌人重叠，如果重叠则调整位置
+            Vector2 enemyPos = enemy.getPixelPosition();
+            for (int attempts = 0; attempts < 10; attempts++) {
+                boolean overlaps = false;
+                for (SimpleEnemy existing : enemies) {
+                    if (CollisionSystem.checkCollision(enemyPos, existing.getPixelPosition())) {
+                        overlaps = true;
+                        break;
+                    }
+                }
+                
+                // 检查是否与玩家重叠
+                if (!overlaps && CollisionSystem.checkCollision(enemyPos, player.getPixelPosition())) {
+                    overlaps = true;
+                }
+                
+                if (!overlaps) {
+                    break;
+                }
+                
+                // 如果重叠，尝试新位置（随机偏移）
+                enemyPos.x += MathUtils.random(-50, 50);
+                enemyPos.y += MathUtils.random(-50, 50);
+                enemyPos.x = MathUtils.clamp(enemyPos.x, 1000, VIRTUAL_WIDTH - 100);
+                enemyPos.y = MathUtils.clamp(enemyPos.y, 100, VIRTUAL_HEIGHT - 100);
+                enemy.setPosition(enemyPos.x, enemyPos.y);
+            }
+            
+            enemies.add(enemy);
+        }
     }
     
     @Override
@@ -146,16 +184,24 @@ public class AttackDemoScreen implements Screen {
         if (Gdx.input.isKeyPressed(Input.Keys.W) || Gdx.input.isKeyPressed(Input.Keys.UP)) moveY += 1;
         if (Gdx.input.isKeyPressed(Input.Keys.S) || Gdx.input.isKeyPressed(Input.Keys.DOWN)) moveY -= 1;
         
-        // 更新玩家位置
+        // 更新玩家位置（带碰撞检测）
         if (moveX != 0 || moveY != 0) {
-            Vector2 pos = player.getPixelPosition();
+            Vector2 currentPos = player.getPixelPosition();
             Vector2 dir = new Vector2(moveX, moveY).nor();
-            pos.add(dir.x * PLAYER_MOVE_SPEED * delta, dir.y * PLAYER_MOVE_SPEED * delta);
+            
+            // 计算目标位置
+            Vector2 targetPos = currentPos.cpy();
+            targetPos.add(dir.x * PLAYER_MOVE_SPEED * delta, dir.y * PLAYER_MOVE_SPEED * delta);
+            
+            // 检查与所有敌人的碰撞，并调整目标位置
+            CollisionSystem.checkMovementAgainstAll(currentPos, targetPos, player);
             
             // 限制在屏幕内
-            pos.x = MathUtils.clamp(pos.x, 0, VIRTUAL_WIDTH);
-            pos.y = MathUtils.clamp(pos.y, 0, VIRTUAL_HEIGHT);
-            player.setPosition(pos.x, pos.y);
+            targetPos.x = MathUtils.clamp(targetPos.x, 0, VIRTUAL_WIDTH);
+            targetPos.y = MathUtils.clamp(targetPos.y, 0, VIRTUAL_HEIGHT);
+            
+            // 更新玩家位置
+            player.setPosition(targetPos.x, targetPos.y);
         }
         
         // 攻击输入
@@ -387,6 +433,16 @@ public class AttackDemoScreen implements Screen {
         public SimpleEnemy(float x, float y) {
             position.set(x, y);
             EntityManager.getInstance().register(this);
+        }
+        
+        /**
+         * 设置敌人位置（用于碰撞调整）
+         * 
+         * @param x X 坐标
+         * @param y Y 坐标
+         */
+        public void setPosition(float x, float y) {
+            position.set(x, y);
         }
         
         @Override

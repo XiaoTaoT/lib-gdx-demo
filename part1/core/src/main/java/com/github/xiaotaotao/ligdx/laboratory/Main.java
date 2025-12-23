@@ -2,6 +2,7 @@ package com.github.xiaotaotao.ligdx.laboratory;
 
 import com.badlogic.gdx.Game;
 import com.github.xiaotaotao.ligdx.laboratory.attack.AttackDemoScreen;
+import com.github.xiaotaotao.ligdx.laboratory.shape.ShapeDemoScreen;
 
 /** {@link com.badlogic.gdx.ApplicationListener} implementation shared by all platforms. */
 public class Main extends Game {
@@ -19,6 +20,8 @@ public class Main extends Game {
 
         // 像素角色/战斗系统演示 Screen
 //        setScreen(new CharacterDemoScreen());
-        setScreen(new AttackDemoScreen());
+//        setScreen(new AttackDemoScreen());
+//        setScreen(new ShapeDemoScreen());
+        setScreen(new P2Screen());
     }
 }
