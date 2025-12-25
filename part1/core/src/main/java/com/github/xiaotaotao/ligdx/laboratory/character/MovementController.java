@@ -119,6 +119,8 @@ public interface MovementController {
      */
     Facing getFacing();
 
+    default void move(float x, float y){};
+
     /**
      * 角色面朝方向枚举：
      * - 用于选择行走动画的朝向（例如：向下走用 down 动画帧）
@@ -349,6 +351,7 @@ public interface MovementController {
      */
     class FreeMovementController implements MovementController {
 
+
         /** 角色的当前世界坐标位置（像素单位，左下角为原点，可以是任意浮点数） */
         private final Vector2 position = new Vector2();
 
@@ -503,6 +506,11 @@ public interface MovementController {
         @Override
         public Facing getFacing() {
             return facing;
+        }
+
+        @Override
+        public void move(float x, float y) {
+            this.setInputDirection(x,y);
         }
     }
 }

@@ -1,5 +1,7 @@
 package com.github.xiaotaotao.ligdx.laboratory.character;
 
+import com.badlogic.gdx.graphics.Texture;
+import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.math.Rectangle;
 import com.badlogic.gdx.math.Vector2;
 
@@ -58,6 +60,85 @@ public class SimplePixelCharacter implements PixelCharacter {
         this.skillSystem = skillSystem;
     }
 
+    public static SimplePixelCharacter create() {
+        // ===== 玩家角色：属性 + 移动 + 攻击 + 技能 =====
+        AttributeSystem.BasicAttributeSystem playerAttr =
+            new AttributeSystem.BasicAttributeSystem(
+                100, // maxHp
+                50,  // maxMp
+                20,  // attack
+                5,   // defense
+                2.0f, // attackSpeed（这里暂未直接使用）
+                120f  // moveSpeed 像素/秒
+            );
+
+        // 玩家飘血监听（主要演示：受到伤害时生成红色/-值；治疗时可以扩展为绿色/+值）
+        playerAttr.setListener(new AttributeSystem.Listener() {
+            @Override
+            public void onStatsChanged(AttributeSystem.Stats newStats) {
+                // 本 Demo 中玩家暂不被敌人攻击，此处保留以便扩展
+            }
+
+            @Override
+            public void onDamageResolved(AttributeSystem.DamageResult result) {
+                // 可以在这里生成玩家受到伤害的飘血
+            }
+        });
+
+        // 近战普攻：6 帧动画，第 3 帧为打击帧，总时长 0.4 秒
+        AttackSystem.BasicMeleeAttackSystem meleeAttack =
+            new AttackSystem.BasicMeleeAttackSystem(
+                6,
+                2,        // 第 3 帧（索引从 0 开始）
+                0.4f,
+                () -> {
+                    /*if (isDead()) return;
+                    // 简单近战判定：玩家与敌人的距离 < 64 像素即视为命中（此处使用连续移动玩家做示例）
+                    Vector2 p = freePlayer.getPosition();
+                    enemyPos.set(enemyMovement.getPosition());
+                    float dst2 = p.dst2(enemyPos);
+                    if (dst2 <= 64 * 64) {
+                        AttributeSystem.DamageRequest req = new AttributeSystem.DamageRequest();
+                        req.attackerStats = freePlayer.getAttributes().getStats();
+                        req.defenderStats = enemyAttributes.getStats();
+                        req.baseDamage = 5;
+                        req.critical = MathUtils.randomBoolean(0.2f);
+                        req.criticalMul = 1.5f;
+                        enemyAttributes.applyDamage(req);
+                    }*/
+                }
+            );
+
+        // 技能系统：一个简单的火球技能
+        SkillSystem.BasicSkillSystem skillSystem =
+            new SkillSystem.BasicSkillSystem(skill -> {
+                if ("SKILL_FIREBALL".equals(skill.id)) {
+//                    trySkillHit(skill);
+                }
+            });
+        skillSystem.addSkill(new SkillSystem.Skill(
+            "SKILL_FIREBALL",
+            "火球术",
+            0.3f,   // 前摇
+            0.2f,   // 后摇
+            2.0f,   // 冷却
+            30      // 基础伤害
+        ));
+
+        // 创建两个聚合角色：一个使用连续移动，一个使用栅格移动
+        MovementController freeMove = new MovementController.FreeMovementController(playerAttr.getStats());
+        Rectangle bounds = new Rectangle(80, 80, 1920 - 160, 1080 - 160);
+
+        return new SimplePixelCharacter(
+            "free-player",
+            playerAttr,
+            freeMove,
+            meleeAttack,
+            skillSystem,
+            bounds
+        );
+    }
+
     @Override
     public String getId() {
         return id;
@@ -88,6 +169,16 @@ public class SimplePixelCharacter implements PixelCharacter {
         // 直接暴露 movementController 的位置引用，避免额外分配
         sharedPosition.set(movementController.getPosition());
         return sharedPosition;
+    }
+
+    public void draw(SpriteBatch batch, Texture texture) {
+        float size = 32f;
+        // 连续移动玩家（绿色）
+        Vector2 fp = this.getPosition();
+        float freeX = Math.round(fp.x - size / 2f);
+        float freeY = Math.round(fp.y - size / 2f);
+        batch.setColor(0.3f, 1f, 0.3f, 1f);
+        batch.draw(texture, freeX, freeY, size, size);
     }
 
     @Override
