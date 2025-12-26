@@ -22,6 +22,11 @@ public class Main extends Game {
 //        setScreen(new CharacterDemoScreen());
 //        setScreen(new AttackDemoScreen());
 //        setScreen(new ShapeDemoScreen());
-        setScreen(new P2Screen());
+        
+        // 虚拟线程演示 - 1000个对象无规则运动
+        // setScreen(new VirtualThreadDemoScreen());
+        
+        // setScreen(new P2Screen());
+        setScreen(new VirtualThreadDemoScreen());
     }
 }
